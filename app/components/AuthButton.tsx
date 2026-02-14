@@ -2,6 +2,7 @@
 
 import { useSession, signIn, signOut } from "next-auth/react"
 import { User, LogIn, LogOut, Shield } from "lucide-react"
+import Image from "next/image"
 
 export default function AuthButton() {
   const { data: session, status } = useSession()
@@ -20,11 +21,13 @@ export default function AuthButton() {
       <div className="flex items-center gap-3">
         {/* User Info */}
         <div className="flex items-center gap-2 bg-warm-cream/10 px-3 py-1.5 rounded-lg">
-          <div className="w-7 h-7 bg-warm-cream/20 rounded-full flex items-center justify-center">
+          <div className="w-7 h-7 bg-warm-cream/20 rounded-full flex items-center justify-center overflow-hidden">
             {session.user?.image ? (
-              <img
+              <Image
                 src={session.user.image}
                 alt={session.user.name || "User"}
+                width={28}
+                height={28}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (
