@@ -1,3 +1,11 @@
+// Nama-nama shalat utama
+export type PrayerName =
+  | "Fajr"      // Subuh
+  | "Dhuhr"     // Dzuhur
+  | "Asr"       // Ashar
+  | "Maghrib"   // Maghrib
+  | "Isha";     // Isya
+
 // Types for Aladhan Prayer Times API Response
 export interface PrayerTimings {
   Fajr: string;      // Subuh

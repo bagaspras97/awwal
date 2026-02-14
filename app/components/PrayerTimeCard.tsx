@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LucideIcon, Check, Clock, Edit3, X, Sun, Sunrise, Sunset, Moon, Star } from "lucide-react";
-import { useAttendance } from "@/app/hooks/useAttendance";
+import { useUserAttendance } from "@/app/hooks/useUserAttendance";
 import { getValidPrayerTimeRange } from "@/app/utils/time";
 import { SimplePrayerTime } from "@/app/types/prayer";
+import { useAttendanceRefresh } from "@/app/contexts/AttendanceContext";
 
 interface PrayerTimeCardProps {
   name: string;
@@ -41,11 +42,39 @@ export default function PrayerTimeCard({
   isActive = false,
   allPrayerTimes = []
 }: PrayerTimeCardProps) {
-  const { isPrayerAttended, markAttended, markCompleted, markAttendedWithCustomTime, unmarkAttended, todayAttendance } = useAttendance();
+  const { 
+    getPrayerAttendance,
+    markPrayerCompleted,
+    markPrayerAttendedWithCustomTime,
+    unmarkPrayer,
+    isAuthenticated
+  } = useUserAttendance();
+  const { refreshTrigger } = useAttendanceRefresh();
   const [isEditing, setIsEditing] = useState(false);
   const [customTime, setCustomTime] = useState('');
+  const [localAttendance, setLocalAttendance] = useState<any>(null);
   
-  const isAttended = isPrayerAttended(name);
+  // Get attendance data with local state priority
+  const attendanceData = localAttendance || getPrayerAttendance(name);
+  const isAttended = !!attendanceData?.completed;
+  
+  // Listen for attendance updates
+  useEffect(() => {
+    const handleAttendanceUpdate = (event: any) => {
+      if (event.detail?.prayerName === name) {
+        // Refresh local data immediately
+        setLocalAttendance(getPrayerAttendance(name));
+      }
+    };
+    
+    window.addEventListener('attendanceUpdate', handleAttendanceUpdate);
+    return () => window.removeEventListener('attendanceUpdate', handleAttendanceUpdate);
+  }, [name, getPrayerAttendance]);
+  
+  // Initial load and refresh on context changes
+  useEffect(() => {
+    setLocalAttendance(getPrayerAttendance(name));
+  }, [name, getPrayerAttendance, refreshTrigger]);
   const { icon: Icon, color: iconColor } = getPrayerIcon(name);
   
   // Get valid time range for this prayer
@@ -53,7 +82,13 @@ export default function PrayerTimeCard({
   
   const handleMarkAttended = async () => {
     try {
-      await markAttended(name, time);
+      markPrayerCompleted(name);
+      // Immediate local update
+      setLocalAttendance({
+        completed: true,
+        completedAt: new Date().toISOString(),
+        method: 'simple'
+      });
     } catch (error) {
       console.error('Error marking attendance:', error);
     }
@@ -62,10 +97,17 @@ export default function PrayerTimeCard({
   const handleQuickToggle = async () => {
     try {
       if (isAttended) {
-        await unmarkAttended(name);
+        unmarkPrayer(name);
+        // Immediate local update
+        setLocalAttendance(null);
       } else {
-        // Simple completion without time tracking
-        await markCompleted(name);
+        markPrayerCompleted(name);
+        // Immediate local update
+        setLocalAttendance({
+          completed: true,
+          completedAt: new Date().toISOString(),
+          method: 'simple'
+        });
       }
     } catch (error) {
       console.error('Error toggling completion:', error);
@@ -74,14 +116,21 @@ export default function PrayerTimeCard({
 
   const handleEditStart = () => {
     // Pre-fill with current attended time if available, otherwise scheduled time
-    const currentAttendedTime = todayAttendance?.prayers[name as keyof typeof todayAttendance.prayers]?.actualTime || time;
+    const currentAttendedTime = attendanceData?.customTime || time;
     setCustomTime(currentAttendedTime);
     setIsEditing(true);
   };
 
   const handleEditSave = async () => {
     try {
-      await markAttendedWithCustomTime(name, time, customTime);
+      markPrayerAttendedWithCustomTime(name, customTime);
+      // Immediate local update
+      setLocalAttendance({
+        completed: true,
+        completedAt: new Date().toISOString(),
+        customTime,
+        method: 'detailed'
+      });
       setIsEditing(false);
     } catch (error) {
       console.error('Error saving custom time:', error);
@@ -156,24 +205,12 @@ export default function PrayerTimeCard({
             </div>
             
             {/* Simple Timing Info for Attended */}
-            {isAttended && (() => {
-              const attendanceInfo = todayAttendance?.prayers[name as keyof typeof todayAttendance.prayers];
-              if (!attendanceInfo) return null;
-              
-              return (
-                <div className="text-xs text-midnight-blue/60 mt-1">
-                  {attendanceInfo.actualTime && (
-                    <span>Shalat {attendanceInfo.actualTime}</span>
-                  )}
-                  {attendanceInfo.isEarly !== undefined && (
-                    <span className={`ml-2 ${attendanceInfo.isEarly ? 'text-sage-green' : 'text-soft-gold'}`}>
-                      {attendanceInfo.isEarly ? '• Awal waktu' : 
-                       attendanceInfo.delayMinutes ? `• +${attendanceInfo.delayMinutes}m` : '• Tepat waktu'}
-                    </span>
-                  )}
-                </div>
-              );
-            })()}
+            {isAuthenticated && isAttended && attendanceData?.customTime && (
+              <div className="text-xs text-midnight-blue/60 mt-1">
+                <span>Shalat {attendanceData.customTime}</span>
+                {/* Additional timing analysis could be added here */}
+              </div>
+            )}
           </div>
         </div>
         
@@ -190,18 +227,29 @@ export default function PrayerTimeCard({
           <div className="flex items-center space-x-2">
             {/* Active Prayer Button */}
             {isActive && !isAttended && (
-              <button
-                onClick={handleMarkAttended}
-                className="px-3 py-1.5 bg-soft-gold text-midnight-blue text-sm font-medium rounded-lg hover:bg-soft-gold/80 transition-colors"
-              >
-                Hadir
-              </button>
+              isAuthenticated ? (
+                <button
+                  onClick={handleMarkAttended}
+                  className="px-3 py-1.5 bg-soft-gold text-midnight-blue text-sm font-medium rounded-lg hover:bg-soft-gold/80 transition-colors"
+                >
+                  Hadir
+                </button>
+              ) : (
+                <div className="px-3 py-1.5 bg-gray-100 text-gray-400 text-sm font-medium rounded-lg cursor-not-allowed">
+                  Login untuk tracking
+                </div>
+              )
             )}
             
             {/* Passed Prayer Actions */}
             {isPassed && !isActive && (
               <div className="flex items-center space-x-1">
-                {!isEditing ? (
+                {!isAuthenticated ? (
+                  <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-lg">
+                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+                    <span className="text-xs text-gray-400">Login untuk tracking</span>
+                  </div>
+                ) : !isEditing ? (
                   <>
                     <button
                       onClick={handleQuickToggle}
