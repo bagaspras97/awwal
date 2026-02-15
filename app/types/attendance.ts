@@ -1,4 +1,6 @@
 // Types for prayer attendance tracking
+
+// Legacy type for existing components
 export interface PrayerAttendance {
   prayerName: string;
   date: string; // YYYY-MM-DD format
@@ -8,6 +10,18 @@ export interface PrayerAttendance {
   isAttended: boolean;
   isEarly?: boolean; // true jika shalat dilakukan di awal waktu
   delayMinutes?: number; // berapa menit terlambat dari jadwal (jika terlambat)
+}
+
+// New type that matches database schema
+export interface AttendanceRecord {
+  id: string;
+  date: string; // YYYY-MM-DD format
+  prayerName: string;
+  attendedAt: string; // ISO timestamp
+  timeStatus: 'on_time' | 'early' | 'late';
+  location?: string;
+  customTime?: string; // HH:MM format for custom prayer time
+  method?: 'simple' | 'detailed'; // tracking method used
 }
 
 export interface DailyPrayerAttendance {
@@ -26,4 +40,7 @@ export interface AttendanceStats {
   attendedPrayers: number;
   attendanceRate: number;
   streak: number; // consecutive days with all prayers
+  completionRate?: number;
+  currentStreak?: number;
+  longestStreak?: number;
 }

@@ -8,7 +8,7 @@ import { useAttendanceRefresh } from "../contexts/AttendanceContext"
 
 export default function UserStats() {
   const { data: session } = useSession()
-  const { getAttendanceStats, isAuthenticated } = useUserAttendance()
+  const { getAttendanceStats, isAuthenticated, syncStatus } = useUserAttendance()
   const { refreshTrigger } = useAttendanceRefresh()
   const [stats, setStats] = useState({
     totalDays: 0,
@@ -18,8 +18,9 @@ export default function UserStats() {
   })
 
   useEffect(() => {
-    const updateStats = () => {
-      const currentStats = getAttendanceStats()
+    const updateStats = async () => {
+      const currentStats = await getAttendanceStats()
+      console.log('UserStats - Updated stats:', currentStats)
       setStats(currentStats)
     }
 
@@ -31,18 +32,18 @@ export default function UserStats() {
       updateStats()
     }
 
-    window.addEventListener('attendanceUpdate', handleAttendanceUpdate)
+    globalThis.window.addEventListener('attendanceUpdate', handleAttendanceUpdate)
     // Keep storage listener for backward compatibility
-    window.addEventListener('storage', handleAttendanceUpdate)
+    globalThis.window.addEventListener('storage', handleAttendanceUpdate)
     
     return () => {
-      window.removeEventListener('attendanceUpdate', handleAttendanceUpdate)
-      window.removeEventListener('storage', handleAttendanceUpdate)
+      globalThis.window.removeEventListener('attendanceUpdate', handleAttendanceUpdate)
+      globalThis.window.removeEventListener('storage', handleAttendanceUpdate)
     }
   }, [getAttendanceStats, refreshTrigger])
 
-  // Don't show stats if no data or not authenticated
-  if (!isAuthenticated || stats.totalPrayers === 0) {
+  // Don't show stats if not authenticated, but show if totalPrayers is 0 (user can still see empty state)
+  if (!isAuthenticated) {
     return null
   }
 
@@ -58,6 +59,21 @@ export default function UserStats() {
           <div className="flex items-center gap-2 text-midnight-blue/60 text-sm">
             <User className="w-4 h-4" />
             <span>{session?.user?.name?.split(' ')[0]}</span>
+            {/* Sync Status Indicator */}
+            <div className="flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full ${
+                syncStatus === 'synced' ? 'bg-sage-green' :
+                syncStatus === 'syncing' ? 'bg-soft-gold animate-pulse' :
+                syncStatus === 'pending' ? 'bg-orange-400' :
+                'bg-gray-400'
+              }`}></div>
+              <span className="text-xs">
+                {syncStatus === 'synced' && 'Tersinkron'}
+                {syncStatus === 'syncing' && 'Sinkronisasi...'}
+                {syncStatus === 'pending' && 'Menunggu sinkron'}
+                {syncStatus === 'offline' && 'Offline'}
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -111,25 +127,41 @@ export default function UserStats() {
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="mt-4">
-        <div className="bg-gray-100 rounded-full h-2">
-          <div 
-            className="bg-gradient-to-r from-sage-green to-soft-gold h-2 rounded-full transition-all duration-500"
-            style={{ width: `${stats.completionRate}%` }}
-          ></div>
+      {/* Empty State Message */}
+      {stats.totalPrayers === 0 && (
+        <div className="mt-4 p-4 bg-sage-green/5 rounded-lg text-center">
+          <p className="text-sm text-midnight-blue/70 mb-2">
+            Belum ada data shalat tercatat
+          </p>
+          <p className="text-xs text-midnight-blue/50">
+            Mulai track shalat Anda dengan klik tombol "Hadir" pada waktu shalat
+          </p>
         </div>
-      </div>
+      )}
 
-      {/* Motivational Message */}
-      <div className="mt-4 text-center">
-        <p className="text-xs text-midnight-blue/60">
-          {stats.completionRate >= 90 && "Mashaa Allah! Pertahankan konsistensi yang luar biasa! 🌟"}
-          {stats.completionRate >= 80 && stats.completionRate < 90 && "Sangat baik! Terus tingkatkan ibadah Anda 💪"}
-          {stats.completionRate >= 60 && stats.completionRate < 80 && "Bagus! Mari lebih konsisten lagi 📈"}
-          {stats.completionRate < 60 && "Yuk semangat! Setiap langkah kecil sangat berarti 🌱"}
-        </p>
-      </div>
+      {/* Progress Bar - only show if there's data */}
+      {stats.totalPrayers > 0 && (
+        <div className="mt-4">
+          <div className="bg-gray-100 rounded-full h-2">
+            <div 
+              className="bg-linear-to-r from-sage-green to-soft-gold h-2 rounded-full transition-all duration-500"
+              style={{ width: `${stats.completionRate}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+
+      {/* Motivational Message - only show if there's data */}
+      {stats.totalPrayers > 0 && (
+        <div className="mt-4 text-center">
+          <p className="text-xs text-midnight-blue/60">
+            {stats.completionRate >= 90 && "Mashaa Allah! Pertahankan konsistensi yang luar biasa! 🌟"}
+            {stats.completionRate >= 80 && stats.completionRate < 90 && "Sangat baik! Terus tingkatkan ibadah Anda 💪"}
+            {stats.completionRate >= 60 && stats.completionRate < 80 && "Bagus! Mari lebih konsisten lagi 📈"}
+            {stats.completionRate < 60 && "Yuk semangat! Setiap langkah kecil sangat berarti 🌱"}
+          </p>
+        </div>
+      )}
 
       {!isAuthenticated && (
         <div className="mt-4 p-3 bg-soft-gold/10 rounded-lg">

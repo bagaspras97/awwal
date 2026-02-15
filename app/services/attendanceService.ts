@@ -84,7 +84,7 @@ export class AttendanceService {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allAttendance));
       
       // Dispatch custom event for UI updates
-      window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
+      globalThis.window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
         detail: { prayerName, date: today, isEarly, delayMinutes }
       }));
 
@@ -131,7 +131,7 @@ export class AttendanceService {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allAttendance));
       
       // Dispatch custom event for UI updates
-      window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
+      globalThis.window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
         detail: { prayerName, date: today, isSimpleCompletion: true }
       }));
 
@@ -181,7 +181,7 @@ export class AttendanceService {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allAttendance));
       
       // Dispatch custom event for UI updates
-      window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
+      globalThis.window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
         detail: { prayerName, date: today, isEarly, delayMinutes, isCustomTime: true }
       }));
 
@@ -201,12 +201,12 @@ export class AttendanceService {
       
       const todayRecord = allAttendance.find(record => record.date === today);
       
-      if (todayRecord && todayRecord.prayers[prayerName as keyof typeof todayRecord.prayers]) {
+      if (todayRecord?.prayers[prayerName as keyof typeof todayRecord.prayers]) {
         delete todayRecord.prayers[prayerName as keyof typeof todayRecord.prayers];
         
         localStorage.setItem(STORAGE_KEY, JSON.stringify(allAttendance));
         
-        window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
+        globalThis.window.dispatchEvent(new CustomEvent('prayerAttendanceUpdated', {
           detail: { prayerName, date: today }
         }));
       }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LucideIcon, Check, Clock, Edit3, X, Sun, Sunrise, Sunset, Moon, Star } from "lucide-react";
+import { Check, Edit3, X, Sun, Sunrise, Sunset, Moon, Star } from "lucide-react";
 import { useUserAttendance } from "@/app/hooks/useUserAttendance";
 import { getValidPrayerTimeRange } from "@/app/utils/time";
 import { SimplePrayerTime } from "@/app/types/prayer";
@@ -67,8 +67,8 @@ export default function PrayerTimeCard({
       }
     };
     
-    window.addEventListener('attendanceUpdate', handleAttendanceUpdate);
-    return () => window.removeEventListener('attendanceUpdate', handleAttendanceUpdate);
+    globalThis.window.addEventListener('attendanceUpdate', handleAttendanceUpdate);
+    return () => globalThis.window.removeEventListener('attendanceUpdate', handleAttendanceUpdate);
   }, [name, getPrayerAttendance]);
   
   // Initial load and refresh on context changes
@@ -225,22 +225,64 @@ export default function PrayerTimeCard({
           
           {/* Actions */}
           <div className="flex items-center space-x-2">
-            {/* Active Prayer Button */}
-            {isActive && !isAttended && (
-              isAuthenticated ? (
-                <button
-                  onClick={handleMarkAttended}
-                  className="px-3 py-1.5 bg-soft-gold text-midnight-blue text-sm font-medium rounded-lg hover:bg-soft-gold/80 transition-colors"
-                >
-                  Hadir
-                </button>
-              ) : (
-                <div className="px-3 py-1.5 bg-gray-100 text-gray-400 text-sm font-medium rounded-lg cursor-not-allowed">
-                  Login untuk tracking
-                </div>
-              )
+            {/* Active Prayer Actions */}
+            {isActive && (
+              <div className="flex items-center space-x-1">
+                {!isAuthenticated ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-soft-gold/10 rounded-lg">
+                    <div className="w-1.5 h-1.5 bg-soft-gold rounded-full animate-pulse"></div>
+                    <span className="text-sm text-soft-gold">Login untuk tracking</span>
+                  </div>
+                ) : !isEditing ? (
+                  <>
+                    <button
+                      onClick={handleQuickToggle}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        isAttended 
+                          ? 'text-sage-green bg-sage-green/10 hover:bg-sage-green/20' 
+                          : 'text-midnight-blue bg-soft-gold hover:bg-soft-gold/80'
+                      }`}
+                      title={isAttended ? "Belum Shalat" : "Hadir Sekarang"}
+                    >
+                      {isAttended ? <Check className="w-4 h-4 mr-1" /> : null}
+                      {isAttended ? "Selesai" : "Hadir"}
+                    </button>
+                    
+                    <button
+                      onClick={handleEditStart}
+                      className="px-2 py-1.5 text-xs text-soft-gold hover:text-soft-gold/80 transition-colors"
+                      title="Edit waktu shalat"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center space-x-1">
+                    <input
+                      type="time"
+                      value={customTime}
+                      min={validRange?.min}
+                      max={validRange?.max}
+                      onChange={(e) => setCustomTime(e.target.value)}
+                      className="px-2 py-1 text-xs border border-soft-gold/30 rounded-md focus:outline-none focus:ring-1 focus:ring-soft-gold bg-white"
+                    />
+                    <button
+                      onClick={handleEditSave}
+                      className="px-2 py-1 text-sage-green hover:bg-sage-green/10 rounded-md transition-colors"
+                    >
+                      <Check className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={handleEditCancel}
+                      className="px-2 py-1 text-gray-400 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
-            
+
             {/* Passed Prayer Actions */}
             {isPassed && !isActive && (
               <div className="flex items-center space-x-1">
